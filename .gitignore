@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+backend/.env
+backend/venv/
+backend/storage/uploads/*
+backend/storage/outputs/*
+!backend/storage/sample.txt
+__pycache__/
+*.pyc
+.DS_Store

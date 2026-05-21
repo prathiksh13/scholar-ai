@@ -1,0 +1,19 @@
+Machine Learning in Healthcare
+
+Abstract
+This paper reviews applications of machine learning in clinical settings.
+
+Introduction
+Healthcare systems generate vast amounts of data suitable for predictive modeling.
+
+Methodology
+We surveyed recent literature and evaluated common architectures.
+
+Results
+Deep learning models show promise for diagnostic assistance.
+
+Conclusion
+Further validation and ethical review remain essential.
+
+References
+Author, A. (2024). AI in Medicine. Journal of Health Informatics.
