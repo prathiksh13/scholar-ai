@@ -1,0 +1,667 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --color-cyber-teal: #2dd4bf;
+  --color-cyber-cyan: #06b6d4;
+  --color-deep-navy: #030712;
+  --color-slate-glass: rgba(15, 23, 42, 0.45);
+}
+
+:root {
+  --bg-dark: #030712;
+  --accent-cyan: 6, 182, 212;
+  --accent-teal: 45, 212, 191;
+  --glass-border: rgba(6, 182, 212, 0.12);
+  --glass-border-glow: rgba(6, 182, 212, 0.25);
+  --glass-bg: rgba(15, 23, 42, 0.65);
+  --glass-blur: 16px;
+}
+
+/* ─── Global Styling & Smooth Aesthetics ────────────────────────── */
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-dark);
+  font-family: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* Custom Elegant Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.25);
+}
+
+/* Waves background positioning */
+.waves-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* ─── Premium UI Elements & Glassmorphism ──────────────────────── */
+
+.glass-nav {
+  background: rgba(3, 7, 18, 0.45);
+  backdrop-filter: blur(12px) saturate(120%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(110%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(6, 182, 212, 0.2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.03);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--glass-border);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #a5f3fc 0%, #22d3ee 50%, #2dd4bf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500/90 to-teal-500/90 px-5 py-2.5 font-medium text-white shadow-lg shadow-cyan-900/20 backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:from-cyan-400 hover:to-teal-400 hover:shadow-cyan-400/20 active:scale-[0.98];
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/[0.03] px-5 py-2.5 font-medium text-slate-200 backdrop-blur-md transition-all duration-200 hover:border-white/10 hover:bg-white/[0.06] active:scale-[0.98];
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white;
+}
+
+/* ─── Layout Architecture ─────────────────────────────────────── */
+
+.workspace-shell-new {
+  height: calc(100vh - 64px);
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Left panel style */
+.editor-panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  scrollbar-width: thin;
+}
+
+/* Right panel style (realistic A4 PDF space) */
+.pdf-viewer-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2.5rem 1.5rem;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.2) 0%, rgba(3, 7, 18, 0.7) 100%);
+  position: relative;
+  scrollbar-width: thin;
+}
+
+/* Floating toolbars */
+.floating-zoom-bar {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.05);
+}
+
+/* Drag and Drop Zone */
+.upload-dropzone-minimal {
+  @apply cursor-pointer rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-5 text-center transition duration-200 hover:border-cyan-500/40 hover:bg-cyan-500/[0.02];
+}
+
+.upload-dropzone-minimal.is-dragging {
+  @apply border-cyan-400 bg-cyan-500/[0.04] shadow-inner shadow-cyan-500/5;
+}
+
+/* ─── realistic A4 Page View (PDF Engine Integration) ──────────── */
+
+.paper-preview-shell {
+  background: transparent;
+  width: 100%;
+}
+
+.paged-preview-stage {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+}
+
+.paged-preview-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
+  width: 100%;
+}
+
+.formatflow-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
+  width: 100%;
+}
+
+/* Keep exact structure of A4 pages, styled like a realistic document viewer */
+.formatflow-page {
+  position: relative;
+  flex: none;
+  background: #ffffff;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-inline: auto;
+}
+
+.formatflow-page:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 35px 80px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(6, 182, 212, 0.25);
+}
+
+.formatflow-page-surface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #0f172a;
+  font-family: 'Times New Roman', serif;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.formatflow-page-ruler {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Page Elements & Document Blocks (Do NOT modify names) ────── */
+
+.layout-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.layout-block.layout-text {
+  line-height: 1.25;
+}
+
+.layout-block.layout-title {
+  font-size: 16pt;
+  font-weight: 700;
+  text-align: center;
+}
+
+.layout-block.layout-author,
+.layout-block.layout-keyword {
+  font-size: 10pt;
+  text-align: center;
+}
+
+.layout-block.layout-heading {
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.layout-block.layout-paragraph,
+.layout-block.layout-reference {
+  font-size: 10pt;
+  text-align: justify;
+}
+
+.layout-block.layout-references {
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.layout-block.layout-figure,
+.layout-block.layout-table {
+  font-size: 9pt;
+}
+
+.layout-block figure {
+  margin: 0;
+}
+
+.layout-block img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.layout-block figcaption {
+  margin-top: 4pt;
+  font-size: 8pt;
+  text-align: center;
+  color: #475569;
+}
+
+.layout-block table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8.5pt;
+  word-break: break-word;
+}
+
+.layout-block td,
+.layout-block th {
+  border: 1px solid rgba(148, 163, 184, 0.75);
+  padding: 4pt 6pt;
+  vertical-align: top;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.layout-block img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.layout-block .figure-placeholder {
+  min-height: 64pt;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  color: #64748b;
+  background: rgba(248, 250, 252, 0.85);
+  word-break: break-word;
+}
+
+/* Editable Focus States */
+.formatflow-print-editor [contenteditable='true'] {
+  outline: none;
+  caret-color: #06b6d4;
+}
+
+.formatflow-print-editor [contenteditable='true']:focus {
+  outline: 1.5px dashed rgba(6, 182, 212, 0.45);
+  outline-offset: 1px;
+  background: rgba(6, 182, 212, 0.02);
+}
+
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-title {
+  font-size: 18pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-author {
+  font-size: 10pt;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-heading {
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-paragraph,
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-reference {
+  font-size: 10pt;
+  line-height: 1.35;
+}
+
+.formatflow-print-editor[data-template='IEEE'] .layout-block.layout-references {
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.formatflow-print-editor[data-template='IEEE'] .formatflow-page-surface {
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.02);
+}
+
+.formatflow-print-editor .layout-block[data-block-kind].is-active {
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.4);
+  border-radius: 2px;
+}
+
+.paged-preview-empty {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+}
+
+/* ─── Typing animations and custom micro-effects ────────────────── */
+
+.typing-cursor {
+  display: inline-block;
+  width: 0.45rem;
+  height: 1em;
+  margin-left: 0.1rem;
+  background: #06b6d4;
+  vertical-align: text-bottom;
+  animation: typing-blink 0.9s steps(1) infinite;
+}
+
+.typing-line {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  white-space: nowrap;
+  max-width: 100%;
+  animation-name: typing-reveal;
+  animation-timing-function: steps(40, end);
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+
+@keyframes typing-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes typing-reveal {
+  from { max-width: 0; }
+  to { max-width: 100%; }
+}
+
+/* ─── LaTeX Workspace Shell ────────────────────────────────────── */
+
+.workspace-shell {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 0.85rem;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
+  overflow: visible;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 211, 252, 0.24) transparent;
+}
+
+.workspace-panels.latex-layout-shell {
+  flex: 1;
+  display: flex;
+  gap: 0.85rem;
+  min-height: 0;
+  overflow: visible;
+  align-items: stretch;
+}
+
+.latex-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 211, 252, 0.24) transparent;
+  transition: width 180ms ease;
+}
+
+.latex-sidebar.is-collapsed {
+  padding-inline: 0.4rem;
+}
+
+.latex-main-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-workspace-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.latex-editor-column {
+  min-width: 320px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.latex-editor-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+}
+
+.latex-editor-surface {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.latex-editor-root {
+  height: 100%;
+  min-height: 320px;
+}
+
+.latex-editor-chrome {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: rgba(2, 6, 23, 0.75);
+}
+
+.latex-line-numbers {
+  overflow: hidden;
+  padding: 1rem 0.4rem 1rem 0;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  color: #64748b;
+  font-size: 12px;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  text-align: right;
+  user-select: none;
+}
+
+.latex-line-number {
+  padding: 0 0.5rem 0 0;
+  line-height: 1.65;
+}
+
+.latex-editor-textarea {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: none;
+  padding: 1rem 1rem 1rem 0.95rem;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 14px;
+  line-height: 1.65;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+
+.latex-editor-textarea::placeholder {
+  color: #475569;
+}
+
+.latex-editor-textarea:focus {
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+.latex-preview-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-preview-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-frame-shell,
+.visual-editor-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(2, 6, 23, 0.5);
+}
+
+.latex-pdf-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b1220;
+}
+
+.pdf-placeholder {
+  height: 100%;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #cbd5e1;
+}
+
+.analysis-btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/35 hover:bg-cyan-500/10;
+}
+
+.analysis-btn.active {
+  @apply border-cyan-400/35 bg-cyan-500/15 text-white;
+}
+
+.preview-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+
+.preview-badge,
+.preview-live {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.preview-badge {
+  background: rgba(14,165,233,0.14);
+  border: 1px solid rgba(56,189,248,0.24);
+  color: #dbeafe;
+}
+
+.preview-live {
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(251,191,36,0.24);
+  color: #fde68a;
+}
+
+.resize-handle-h {
+  width: 8px;
+  cursor: col-resize;
+  flex: none;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(56,189,248,0.12), rgba(14,165,233,0.02));
+}
+
+.resize-handle-v {
+  height: 8px;
+  width: 100%;
+  cursor: row-resize;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.12), rgba(14,165,233,0.02));
+}
