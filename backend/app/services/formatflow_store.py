@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from app.config import UPLOAD_DIR
+from app.config import TEX_DIR, UPLOAD_DIR
 from app.models.document_schema import SemanticDocument
 from app.services.compliance import ComplianceReport
 from app.rules.ieee import FormatAction
@@ -13,6 +13,8 @@ _semantic: dict[str, SemanticDocument] = {}
 _formatted: dict[str, SemanticDocument] = {}
 _compliance: dict[str, ComplianceReport] = {}
 _actions: dict[str, list] = {}
+_latex: dict[str, str] = {}
+_compile_errors: dict[str, list[dict]] = {}
 
 
 def create_record(document_id: str, file_path: str, filename: str) -> dict:
@@ -22,6 +24,9 @@ def create_record(document_id: str, file_path: str, filename: str) -> dict:
         "filename": filename,
         "output_path": None,
         "editor_dirty": False,
+        "latex_path": None,
+        "pdf_path": None,
+        "compile_errors": [],
     }
     _records[document_id] = record
     _save_meta(document_id, record)
@@ -80,6 +85,54 @@ def get_formatted(document_id: str) -> SemanticDocument | None:
 
 def save_compliance(document_id: str, report: ComplianceReport) -> None:
     _compliance[document_id] = report
+
+
+def save_latex(document_id: str, tex: str) -> None:
+    _latex[document_id] = tex
+    rec = get_record(document_id) or {}
+    rec["latex_path"] = str((TEX_DIR / document_id / "paper.tex").resolve())
+    _records[document_id] = rec
+    _save_meta(document_id, rec)
+    (TEX_DIR / document_id).mkdir(parents=True, exist_ok=True)
+    (TEX_DIR / document_id / "paper.tex").write_text(tex, encoding="utf-8")
+
+
+def get_latex(document_id: str) -> str | None:
+    if document_id in _latex:
+        return _latex[document_id]
+    path = TEX_DIR / document_id / "paper.tex"
+    if path.exists():
+        tex = path.read_text(encoding="utf-8")
+        _latex[document_id] = tex
+        return tex
+    return None
+
+
+def save_compile_errors(document_id: str, errors: list[dict]) -> None:
+    _compile_errors[document_id] = errors
+    rec = get_record(document_id) or {}
+    rec["compile_errors"] = errors
+    _records[document_id] = rec
+    _save_meta(document_id, rec)
+
+
+def get_compile_errors(document_id: str) -> list[dict]:
+    if document_id in _compile_errors:
+        return _compile_errors[document_id]
+    rec = get_record(document_id) or {}
+    return rec.get("compile_errors", []) or []
+
+
+def save_pdf_path(document_id: str, pdf_path: str) -> None:
+    rec = get_record(document_id) or {}
+    rec["pdf_path"] = pdf_path
+    _records[document_id] = rec
+    _save_meta(document_id, rec)
+
+
+def get_pdf_path(document_id: str) -> str | None:
+    rec = get_record(document_id) or {}
+    return rec.get("pdf_path")
 
 
 def get_compliance(document_id: str) -> ComplianceReport | None:

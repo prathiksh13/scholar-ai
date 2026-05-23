@@ -18,17 +18,24 @@ from app.services.compliance import run_compliance_check
 from app.services.format_pipeline import stream_format_job
 from app.services.formatflow_store import (
     create_record,
+    get_compile_errors,
     get_compliance,
     get_editor_html,
     get_formatted,
+    get_latex,
+    get_pdf_path,
     get_record,
     get_semantic,
     is_editor_dirty,
+    save_compile_errors,
+    save_latex,
     save_formatted,
     save_semantic,
     save_compliance,
+    save_pdf_path,
     update_formatted_html,
 )
+from app.services.latex_service import compile_latex, latex_to_semantic, semantic_to_latex, write_latex_bundle
 from app.services.renderer import render_editor_html_to_docx, render_semantic_to_docx, render_semantic_to_pdf
 from app.services.semantic_parser import new_document_id, parse_document_to_semantic
 
@@ -92,6 +99,12 @@ async def upload_docx(
                 from app.services.formatflow_store import save_semantic
 
                 save_semantic(doc_id, semantic)
+                tex_path = write_latex_bundle(doc_id, semantic)
+                save_latex(doc_id, tex_path.read_text(encoding="utf-8"))
+                pdf_path, errors = compile_latex(tex_path)
+                save_compile_errors(doc_id, errors)
+                if pdf_path:
+                    save_pdf_path(doc_id, str(pdf_path))
                 print(f"Background parse complete for {doc_id}")
             except Exception as e:
                 import traceback
@@ -135,6 +148,9 @@ async def get_document(
         "original_html": semantic.to_editor_html() if semantic else "",
         "formatted_html": get_editor_html(document_id) or (formatted.to_editor_html() if formatted else ""),
         "compliance": compliance.model_dump() if compliance else None,
+        "latex": get_latex(document_id) or "",
+        "compile_errors": get_compile_errors(document_id),
+        "pdf_path": get_pdf_path(document_id),
     }
 
 
@@ -192,6 +208,13 @@ async def update_document(
         save_semantic(document_id, reflowed)
         save_formatted(document_id, reflowed, actions=[])
 
+        tex_path = write_latex_bundle(document_id, reflowed)
+        save_latex(document_id, tex_path.read_text(encoding="utf-8"))
+        pdf_path, compile_errors = compile_latex(tex_path)
+        save_compile_errors(document_id, compile_errors)
+        if pdf_path:
+            save_pdf_path(document_id, str(pdf_path))
+
         compliance = run_compliance_check(reflowed)
         save_compliance(document_id, compliance)
 
@@ -202,10 +225,89 @@ async def update_document(
             "formatted_html": refreshed_html,
             "semantic": reflowed.model_dump(),
             "compliance": compliance.model_dump(),
+            "latex": get_latex(document_id) or tex_path.read_text(encoding="utf-8"),
+            "compile_errors": compile_errors,
         }
     except Exception:
         update_formatted_html(document_id, body.html)
         return {"ok": True, "formatted_html": body.html}
+
+
+@router.get("/documents/{document_id}/latex")
+async def get_latex_source(document_id: str, user: dict = Depends(get_current_user)):
+    if not get_record(document_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {
+        "document_id": document_id,
+        "latex": get_latex(document_id) or "",
+        "compile_errors": get_compile_errors(document_id),
+        "pdf_path": get_pdf_path(document_id),
+    }
+
+
+class LatexUpdateRequest(BaseModel):
+    latex: str
+
+
+@router.patch("/documents/{document_id}/latex")
+async def update_latex_source(document_id: str, body: LatexUpdateRequest, user: dict = Depends(get_current_user)):
+    rec = get_record(document_id)
+    semantic = get_semantic(document_id)
+    if not rec or not semantic:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    save_latex(document_id, body.latex)
+    next_semantic = latex_to_semantic(body.latex, semantic)
+    save_semantic(document_id, next_semantic)
+    save_formatted(document_id, next_semantic, actions=[])
+    update_formatted_html(document_id, next_semantic.to_editor_html())
+
+    tex_path = write_latex_bundle(document_id, next_semantic)
+    tex_path.write_text(body.latex, encoding="utf-8")
+    pdf_path, compile_errors = compile_latex(tex_path)
+    save_compile_errors(document_id, compile_errors)
+    if pdf_path:
+        save_pdf_path(document_id, str(pdf_path))
+
+    return {
+        "ok": True,
+        "latex": body.latex,
+        "semantic": next_semantic.model_dump(),
+        "compile_errors": compile_errors,
+        "pdf_path": str(pdf_path) if pdf_path else None,
+    }
+
+
+@router.post("/documents/{document_id}/latex/compile")
+async def compile_latex_source(document_id: str, user: dict = Depends(get_current_user)):
+    rec = get_record(document_id)
+    semantic = get_semantic(document_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Document not found")
+    tex = get_latex(document_id)
+    if not tex:
+        raise HTTPException(status_code=404, detail="LaTeX source not found")
+    if not semantic:
+        raise HTTPException(status_code=404, detail="Semantic document not found")
+    tex_path = write_latex_bundle(document_id, semantic)
+    tex_path.write_text(tex, encoding="utf-8")
+    pdf_path, compile_errors = compile_latex(tex_path)
+    save_compile_errors(document_id, compile_errors)
+    if pdf_path:
+        save_pdf_path(document_id, str(pdf_path))
+    return {
+        "ok": True,
+        "compile_errors": compile_errors,
+        "pdf_path": str(pdf_path) if pdf_path else None,
+    }
+
+
+@router.get("/documents/{document_id}/pdf")
+async def get_compiled_pdf(document_id: str, user: dict = Depends(get_current_user)):
+    pdf_path = get_pdf_path(document_id)
+    if not pdf_path or not Path(pdf_path).exists():
+        raise HTTPException(status_code=404, detail="Compiled PDF not found")
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{document_id}.pdf")
 
 
 @router.patch("/documents/{document_id}/semantic")

@@ -124,11 +124,19 @@ def layout_document(doc: SemanticDocument) -> LayoutDocument:
             _new_page(layout, cursor)
             continue
 
-        width = column_width
+        # Decide whether the block should span both columns (full width)
+        is_full = False
         if item.type in {"figure", "image", "table"}:
+            pct = float(item.width_pct or 100.0)
+            if pct >= 90.0:
+                width = content_width
+                is_full = True
+            else:
+                width = column_width
+        else:
             width = column_width
 
-        _layout_body_block(item, layout, cursor, width, False, body_bottom)
+        _layout_body_block(item, layout, cursor, width, is_full, body_bottom)
 
     return layout
 
@@ -151,7 +159,15 @@ def _front_matter_items(doc: SemanticDocument) -> list[DocumentElement]:
     if doc.title:
         items.append(DocumentElement(type="title", content=doc.title, order=0))
     if doc.authors:
-        items.append(DocumentElement(type="author", content=", ".join(author.name for author in doc.authors), order=1))
+        author_lines: list[str] = []
+        for author in doc.authors:
+            details = [author.name]
+            if author.affiliation:
+                details.append(author.affiliation)
+            if author.email:
+                details.append(author.email)
+            author_lines.append("\n".join(details))
+        items.append(DocumentElement(type="author", content="\n\n".join(author_lines), order=1))
     if doc.keywords:
         items.append(DocumentElement(type="keyword", content=", ".join(doc.keywords), order=2))
     if doc.abstract:
@@ -161,6 +177,42 @@ def _front_matter_items(doc: SemanticDocument) -> list[DocumentElement]:
 
 
 def _body_items(doc: SemanticDocument) -> list[DocumentElement]:
+    structured_items: list[DocumentElement] = []
+    for section in sorted(doc.sections, key=lambda item: item.source_index):
+        if section.title:
+            structured_items.append(DocumentElement(type="heading", content=section.title, order=section.source_index, level=section.level))
+        if section.content:
+            structured_items.append(DocumentElement(type="paragraph", content=section.content, order=section.source_index))
+    for figure in sorted(doc.figures, key=lambda item: item.source_index):
+        structured_items.append(
+            DocumentElement(
+                type="figure",
+                content=figure.caption,
+                order=figure.source_index,
+                caption=figure.caption,
+                src=_figure_src(figure),
+                width_pct=getattr(figure, "width_pct", None),
+            )
+        )
+    for table in sorted(doc.tables, key=lambda item: item.source_index):
+        structured_items.append(
+            DocumentElement(
+                type="table",
+                content=table.caption,
+                order=table.source_index,
+                caption=table.caption,
+                html=table.html,
+                rows=getattr(table, "rows", None) or [],
+                width_pct=getattr(table, "width_pct", None),
+            )
+        )
+    if doc.references:
+        structured_items.append(DocumentElement(type="references", content="References", order=len(structured_items)))
+        for reference in sorted(doc.references, key=lambda item: item.order):
+            structured_items.append(DocumentElement(type="reference", content=reference.text, order=reference.order))
+    if structured_items:
+        return structured_items
+
     if doc.elements:
         items: list[DocumentElement] = []
         seen_abstract_heading = False
@@ -177,21 +229,7 @@ def _body_items(doc: SemanticDocument) -> list[DocumentElement]:
             items.append(element)
         return items
 
-    items: list[DocumentElement] = []
-    for section in doc.sections:
-        if section.title:
-            items.append(DocumentElement(type="heading", content=section.title, order=section.source_index, level=section.level))
-        if section.content:
-            items.append(DocumentElement(type="paragraph", content=section.content, order=section.source_index))
-    for figure in doc.figures:
-        items.append(DocumentElement(type="figure", content=figure.caption, order=figure.source_index, caption=figure.caption, src=_figure_src(figure)))
-    for table in doc.tables:
-        items.append(DocumentElement(type="table", content=table.caption, order=table.source_index, caption=table.caption, html=table.html))
-    if doc.references:
-        items.append(DocumentElement(type="references", content="References", order=len(items)))
-        for reference in sorted(doc.references, key=lambda item: item.order):
-            items.append(DocumentElement(type="reference", content=reference.text, order=reference.order))
-    return items
+    return []
 
 
 def _layout_front_block(
@@ -205,7 +243,8 @@ def _layout_front_block(
     if item.type == "title":
         return _place_text(item, layout, cursor, width, body_bottom, styles["title"], align="center", kind="title", spacing_after=6)
     if item.type == "author":
-        return _place_text(item, layout, cursor, width, body_bottom, styles["authors"], align="center", kind="author", spacing_after=4)
+        author_html = _author_html(item.content)
+        return _place_text(item, layout, cursor, width, body_bottom, styles["authors"], align="center", kind="author", html_override=author_html, spacing_after=6)
     if item.type == "keyword":
         text = f"<b>Keywords:</b> {escape(item.content)}"
         return _place_text(item, layout, cursor, width, body_bottom, styles["body"], align="left", kind="keyword", html_override=text, spacing_after=4)
@@ -234,9 +273,9 @@ def _layout_body_block(
     if block_kind == "paragraph":
         return _place_text(item, layout, cursor, width, body_bottom, styles["body"], align="justify", kind="paragraph", spacing_after=4)
     if block_kind in {"figure", "image"}:
-        return _place_figure(item, layout, cursor, width, body_bottom)
+        return _place_figure(item, layout, cursor, width, full_width, body_bottom)
     if block_kind == "table":
-        return _place_table(item, layout, cursor, width, body_bottom)
+        return _place_table(item, layout, cursor, width, full_width, body_bottom)
     if block_kind == "reference":
         text = f"[{item.order}] {item.content}"
         return _place_text(item, layout, cursor, width, body_bottom, styles["reference"], align="left", kind="reference", html_override=text, spacing_after=3)
@@ -282,7 +321,7 @@ def _place_text(
     return block
 
 
-def _place_figure(item: DocumentElement, layout: LayoutDocument, cursor: PageCursor, width: float, body_bottom: float) -> LayoutBlock:
+def _place_figure(item: DocumentElement, layout: LayoutDocument, cursor: PageCursor, width: float, full_width: bool, body_bottom: float) -> LayoutBlock:
     caption = item.caption or item.content or "Figure"
     figure_width_pct = item.width_pct or 100.0
     image_width = max(120.0, width * min(figure_width_pct / 100.0, 1.0))
@@ -305,8 +344,14 @@ def _place_figure(item: DocumentElement, layout: LayoutDocument, cursor: PageCur
     max_image_height = max(usable_height - caption_height - 12, 72.0)
     image_height = min(image_height, max_image_height)
     total_height = image_height + 8 + caption_height
+    # If this is intended to be full-width ensure we place on column 0 at page margin
+    if full_width and cursor.column == 1:
+        _new_page(layout, cursor)
     _reserve_space(layout, cursor, total_height + 4, body_bottom)
-    x = _column_x(layout, cursor, width)
+    if full_width:
+        x = layout.margin
+    else:
+        x = _column_x(layout, cursor, width)
     y = cursor.y
     html = _figure_html(item, width)
     block = LayoutBlock(
@@ -327,7 +372,7 @@ def _place_figure(item: DocumentElement, layout: LayoutDocument, cursor: PageCur
     return block
 
 
-def _place_table(item: DocumentElement, layout: LayoutDocument, cursor: PageCursor, width: float, body_bottom: float) -> LayoutBlock:
+def _place_table(item: DocumentElement, layout: LayoutDocument, cursor: PageCursor, width: float, full_width: bool, body_bottom: float) -> LayoutBlock:
     rows = _table_rows(item)
     caption_style = _styles()["caption"]
     caption_text = item.caption or item.content or "Table"
@@ -342,8 +387,14 @@ def _place_table(item: DocumentElement, layout: LayoutDocument, cursor: PageCurs
         table = _build_table(chunk_rows, table_width)
         _, table_height = table.wrap(table_width, 10000)
         total_height = caption_height + 6 + table_height
+        # If this chunk should be full width, force placement at page margin and on a fresh page
+        if full_width and cursor.column == 1:
+            _new_page(layout, cursor)
         _reserve_space(layout, cursor, total_height + 4, body_bottom)
-        x = _column_x(layout, cursor, table_width)
+        if full_width:
+            x = layout.margin
+        else:
+            x = _column_x(layout, cursor, table_width)
         y = cursor.y
         block = LayoutBlock(
             kind="table",
@@ -596,9 +647,28 @@ def _text_to_html(value: str) -> str:
     return escape(re.sub(r"\s+", " ", value or "").strip()) or "&nbsp;"
 
 
+def _author_html(value: str) -> str:
+    authors = [chunk.strip() for chunk in re.split(r"\n\s*\n", value or "") if chunk.strip()]
+    if not authors:
+        return "&nbsp;"
+    rendered: list[str] = []
+    for author in authors:
+        lines = [escape(line.strip()) for line in author.splitlines() if line.strip()]
+        if lines:
+            rendered.append("<br/>".join(lines))
+    return "<br/><br/>".join(rendered) or "&nbsp;"
+
+
 def _figure_src(element: DocumentElement | None) -> str | None:
-    if element and element.src:
-        return element.src
+    if not element:
+        return None
+    src = getattr(element, "src", None)
+    if src:
+        return src
+    image_b64 = getattr(element, "image_b64", None)
+    if image_b64:
+        content_type = getattr(element, "content_type", None) or "image/png"
+        return f"data:{content_type};base64,{image_b64}"
     return None
 
 

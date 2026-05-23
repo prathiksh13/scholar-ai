@@ -72,6 +72,7 @@ def _semantic_from_blocks(
     source: str,
 ) -> SemanticDocument:
     title = ""
+    title_order: int | None = None
     authors: list[Author] = []
     abstract = ""
     keywords: list[str] = []
@@ -134,6 +135,7 @@ def _semantic_from_blocks(
 
         if element.type == "title" and not title:
             title = text
+            title_order = element.order
             elements.append(element)
             continue
 
@@ -198,6 +200,7 @@ def _semantic_from_blocks(
         if element.type == "paragraph" and text:
             if not title and len(text) > 0:
                 title = text
+                title_order = element.order
                 elements.append(
                     DocumentElement(
                         type="title",
@@ -207,7 +210,8 @@ def _semantic_from_blocks(
                     )
                 )
                 continue
-            if not authors and _looks_like_authors(text) and title:
+            author_window = title_order is not None and element.order <= title_order + 3
+            if not authors and author_window and _looks_like_authors(text) and title:
                 authors.extend(Author(name=name.strip()) for name in re.split(r",| and ", text) if name.strip())
                 elements.append(
                     DocumentElement(
@@ -255,9 +259,15 @@ def _semantic_from_blocks(
 
 
 def _looks_like_authors(text: str) -> bool:
-    return len(text) < 200 and (
-        "@" in text or "university" in text.lower() or "," in text
-    )
+    cleaned = text.strip()
+    if not cleaned or len(cleaned.split()) > 20:
+        return False
+    if re.search(r"[.!?]", cleaned):
+        return False
+    lowered = cleaned.lower()
+    if any(keyword in lowered for keyword in ("@", "university", "college", "institute", "department")):
+        return True
+    return bool(re.search(r"\b(and|,|&|\bet al\.?\b)\b", lowered)) and bool(re.fullmatch(r"[A-Za-z0-9.,&()\-\s]+", cleaned))
 
 
 def _is_figure_line(text: str) -> bool:
